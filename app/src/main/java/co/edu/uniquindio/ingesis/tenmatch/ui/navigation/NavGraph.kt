@@ -35,7 +35,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 fun MainNavigation(navController: NavHostController) {
     NavHost(
         navController = navController,
-        startDestination = "auth"
+        startDestination = "main"
     ) {
         // Authentication Nested Flow
         navigation(startDestination = MainRoutes.Login.route, route = "auth") {

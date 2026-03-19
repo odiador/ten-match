@@ -1,10 +1,12 @@
 package co.edu.uniquindio.ingesis.tenmatch.game
 
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 data class Card(
@@ -17,35 +19,51 @@ enum class CardState {
     HIDDEN, VISIBLE, REMOVED
 }
 
-class GameViewModel : ViewModel() {
-    private val _cards = mutableStateListOf<Card>()
-    val cards: List<Card> get() = _cards
+data class GameState(
+    val playerName: String = "",
+    val score: Int = 0,
+    val cards: List<Card> = emptyList(),
+    val isGameOver: Boolean = false,
+    val selectedIndices: List<Int> = emptyList()
+)
 
-    private val _selectedIndices = mutableStateListOf<Int>()
-    
-    val playerName = mutableStateOf("")
-    val score = mutableStateOf(0)
-    val isGameOver = mutableStateOf(false)
+class GameViewModel : ViewModel() {
+    private val _uiState = MutableStateFlow(GameState())
+    val uiState: StateFlow<GameState> = _uiState.asStateFlow()
 
     fun startGame(name: String) {
-        playerName.value = name
-        score.value = 0
-        isGameOver.value = false
         val newBoard = GameLogic.generateBoard()
-        _cards.clear()
-        newBoard.forEachIndexed { index, value ->
-            _cards.add(Card(id = index, value = value))
+        val cards = newBoard.mapIndexed { index, value ->
+            Card(id = index, value = value)
+        }
+        
+        _uiState.update { 
+            it.copy(
+                playerName = name,
+                score = 0,
+                isGameOver = false,
+                cards = cards,
+                selectedIndices = emptyList()
+            )
         }
     }
 
     fun onCardClick(index: Int) {
-        if (_selectedIndices.size >= 2 || _cards[index].state != CardState.HIDDEN) return
+        val currentState = _uiState.value
+        if (currentState.selectedIndices.size >= 2 || 
+            currentState.cards[index].state != CardState.HIDDEN) return
 
         // Reveal card
-        _cards[index] = _cards[index].copy(state = CardState.VISIBLE)
-        _selectedIndices.add(index)
+        _uiState.update { state ->
+            val updatedCards = state.cards.toMutableList()
+            updatedCards[index] = updatedCards[index].copy(state = CardState.VISIBLE)
+            state.copy(
+                cards = updatedCards,
+                selectedIndices = state.selectedIndices + index
+            )
+        }
 
-        if (_selectedIndices.size == 2) {
+        if (_uiState.value.selectedIndices.size == 2) {
             viewModelScope.launch {
                 delay(1000) // Brief delay to show the second card
                 checkMatch()
@@ -54,25 +72,35 @@ class GameViewModel : ViewModel() {
     }
 
     private fun checkMatch() {
-        val idx1 = _selectedIndices[0]
-        val idx2 = _selectedIndices[1]
+        val currentState = _uiState.value
+        if (currentState.selectedIndices.size < 2) return
+        
+        val idx1 = currentState.selectedIndices[0]
+        val idx2 = currentState.selectedIndices[1]
 
-        if (_cards[idx1].value + _cards[idx2].value == 10) {
+        val updatedCards = currentState.cards.toMutableList()
+        var newScore = currentState.score
+
+        if (updatedCards[idx1].value + updatedCards[idx2].value == 10) {
             // Match found!
-            _cards[idx1] = _cards[idx1].copy(state = CardState.REMOVED)
-            _cards[idx2] = _cards[idx2].copy(state = CardState.REMOVED)
-            score.value += 10
+            updatedCards[idx1] = updatedCards[idx1].copy(state = CardState.REMOVED)
+            updatedCards[idx2] = updatedCards[idx2].copy(state = CardState.REMOVED)
+            newScore += 10
         } else {
             // No match
-            _cards[idx1] = _cards[idx1].copy(state = CardState.HIDDEN)
-            _cards[idx2] = _cards[idx2].copy(state = CardState.HIDDEN)
+            updatedCards[idx1] = updatedCards[idx1].copy(state = CardState.HIDDEN)
+            updatedCards[idx2] = updatedCards[idx2].copy(state = CardState.HIDDEN)
         }
 
-        _selectedIndices.clear()
+        val gameIsOver = updatedCards.all { it.state == CardState.REMOVED }
 
-        // Check if game is over
-        if (_cards.all { it.state == CardState.REMOVED }) {
-            isGameOver.value = true
+        _uiState.update { 
+            it.copy(
+                cards = updatedCards,
+                score = newScore,
+                selectedIndices = emptyList(),
+                isGameOver = gameIsOver
+            )
         }
     }
 }

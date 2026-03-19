@@ -1,6 +1,8 @@
 package co.edu.uniquindio.ingesis.tenmatch.ui.screens
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.*
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -14,6 +16,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import co.edu.uniquindio.ingesis.tenmatch.game.CardState
@@ -27,6 +30,7 @@ fun GameScreen(
     playerName: String,
     viewModel: GameViewModel = viewModel()
 ) {
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var showExitDialog by remember { mutableStateOf(false) }
 
     // Intercept back button
@@ -39,9 +43,9 @@ fun GameScreen(
     }
 
     // Effect to navigate when game is over
-    LaunchedEffect(viewModel.isGameOver.value) {
-        if (viewModel.isGameOver.value) {
-            navController.navigate(MainRoutes.Results.createRoute(playerName, viewModel.score.value)) {
+    LaunchedEffect(uiState.isGameOver) {
+        if (uiState.isGameOver) {
+            navController.navigate(MainRoutes.Results.createRoute(playerName, uiState.score)) {
                 popUpTo(MainRoutes.Start.route) { inclusive = false }
             }
         }
@@ -62,15 +66,23 @@ fun GameScreen(
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(
-            text = "Jugador: $playerName",
-            style = MaterialTheme.typography.headlineSmall
-        )
-        Text(
-            text = "Puntaje: ${viewModel.score.value}",
-            style = MaterialTheme.typography.titleLarge,
-            color = MaterialTheme.colorScheme.secondary
-        )
+        // Updated Header with Row for Name and Score
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = uiState.playerName,
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = "Puntaje: ${uiState.score}",
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
 
         Spacer(modifier = Modifier.height(24.dp))
 
@@ -81,7 +93,7 @@ fun GameScreen(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            itemsIndexed(viewModel.cards) { index, card ->
+            itemsIndexed(uiState.cards) { index, card ->
                 CardItem(
                     value = card.value,
                     state = card.state,
@@ -94,31 +106,51 @@ fun GameScreen(
 
 @Composable
 fun CardItem(value: Int, state: CardState, onClick: () -> Unit) {
+    val backgroundColor by animateColorAsState(
+        targetValue = when (state) {
+            CardState.HIDDEN -> MaterialTheme.colorScheme.primaryContainer
+            CardState.VISIBLE -> MaterialTheme.colorScheme.secondaryContainer
+            CardState.REMOVED -> Color.Transparent
+        },
+        animationSpec = tween(durationMillis = 300),
+        label = "cardColor"
+    )
+
     Surface(
         modifier = Modifier
             .aspectRatio(1f)
             .clickable(enabled = state == CardState.HIDDEN) { onClick() },
         shape = MaterialTheme.shapes.medium,
-        color = when (state) {
-            CardState.HIDDEN -> MaterialTheme.colorScheme.primaryContainer
-            CardState.VISIBLE -> MaterialTheme.colorScheme.secondaryContainer
-            CardState.REMOVED -> Color.Transparent
-        },
+        color = backgroundColor,
         shadowElevation = if (state == CardState.REMOVED) 0.dp else 4.dp
     ) {
         Box(contentAlignment = Alignment.Center) {
-            if (state == CardState.VISIBLE) {
-                Text(
-                    text = value.toString(),
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            } else if (state == CardState.HIDDEN) {
-                Text(
-                    text = "?",
-                    fontSize = 24.sp,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                )
+            AnimatedContent(
+                targetState = state,
+                transitionSpec = {
+                    fadeIn(animationSpec = tween(300)).togetherWith(fadeOut(animationSpec = tween(300)))
+                },
+                label = "cardContent"
+            ) { targetState ->
+                when (targetState) {
+                    CardState.VISIBLE -> {
+                        Text(
+                            text = value.toString(),
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    CardState.HIDDEN -> {
+                        Text(
+                            text = "?",
+                            fontSize = 24.sp,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
+                    CardState.REMOVED -> {
+                        Spacer(modifier = Modifier.fillMaxSize())
+                    }
+                }
             }
         }
     }
