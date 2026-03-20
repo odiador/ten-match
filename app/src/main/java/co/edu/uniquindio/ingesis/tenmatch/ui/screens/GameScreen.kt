@@ -23,6 +23,7 @@ import co.edu.uniquindio.ingesis.tenmatch.game.CardState
 import co.edu.uniquindio.ingesis.tenmatch.game.GameViewModel
 import co.edu.uniquindio.ingesis.tenmatch.ui.components.ConfirmAlertDialog
 import co.edu.uniquindio.ingesis.tenmatch.ui.navigation.MainRoutes
+import co.edu.uniquindio.ingesis.tenmatch.ui.theme.*
 
 @Composable
 fun GameScreen(

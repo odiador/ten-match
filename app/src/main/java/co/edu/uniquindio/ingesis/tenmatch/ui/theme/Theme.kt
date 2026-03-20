@@ -1,4 +1,4 @@
-package com.example.cardgame.ui.theme
+package co.edu.uniquindio.ingesis.tenmatch.ui.theme
 
 import android.app.Activity
 import android.os.Build
@@ -20,7 +20,11 @@ private val DarkColorScheme = darkColorScheme(
 private val LightColorScheme = lightColorScheme(
     primary = Purple40,
     secondary = PurpleGrey40,
-    tertiary = Pink40
+    tertiary = Pink40,
+    background = AppBackground,
+    onBackground = TextPrimary,
+    surface = AppBackground,
+    onSurface = TextPrimary
 
     /* Other default colors to override
     background = Color(0xFFFFFBFE),

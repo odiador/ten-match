@@ -10,6 +10,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import co.edu.uniquindio.ingesis.tenmatch.ui.navigation.MainRoutes
+import co.edu.uniquindio.ingesis.tenmatch.ui.theme.*
 
 @Composable
 fun ResultsScreen(
@@ -73,19 +74,6 @@ fun ResultsScreen(
             modifier = Modifier.fillMaxWidth()
         ) {
             Text("Jugar de Nuevo")
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        OutlinedButton(
-            onClick = {
-                navController.navigate(MainRoutes.Home.route) {
-                    popUpTo("main") { inclusive = false }
-                }
-            },
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text("Volver al Inicio")
         }
     }
 }
